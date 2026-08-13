@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 
+import Input from "./Input";
+import Button from "./Button";
+
 function StudentForm({
-  onAddStudent,
   editingStudent,
+  onAddStudent,
   onUpdateStudent,
   onCancelEdit,
+  loading,
 }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -14,6 +18,10 @@ function StudentForm({
 
   const [error, setError] = useState("");
 
+  // Checks whether the user has changed the form
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Load existing student while editing
   useEffect(() => {
     if (editingStudent) {
       setFormData({
@@ -21,56 +29,90 @@ function StudentForm({
         age: editingStudent.age,
         course: editingStudent.course,
       });
+    } else {
+      setFormData({
+        name: "",
+        age: "",
+        course: "",
+      });
     }
+
+    setError("");
+    setIsDirty(false);
   }, [editingStudent]);
 
+  // Handle input
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-
-    setError("");
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (
-      formData.name.trim() === "" ||
-      formData.age === "" ||
-      formData.course.trim() === ""
-    ) {
-      setError("All fields are required.");
+    // Do not allow student name above 30 characters
+    if (name === "name" && value.length > 30) {
       return;
     }
 
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    setIsDirty(true);
+    setError("");
+  };
+
+  // Submit form
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setError("");
+
+    // Required fields
+    if (
+      formData.name.trim() === "" ||
+      formData.age === "" ||
+      formData.course === ""
+    ) {
+      setError("Please fill all fields.");
+      return;
+    }
+
+    // Age validation
     if (Number(formData.age) <= 0) {
       setError("Age must be greater than 0.");
       return;
     }
 
-    if (editingStudent) {
-      onUpdateStudent({
-        ...editingStudent,
-        name: formData.name.trim(),
-        age: Number(formData.age),
-        course: formData.course.trim(),
-      });
-    } else {
-      onAddStudent({
-        name: formData.name.trim(),
-        age: Number(formData.age),
-        course: formData.course.trim(),
-      });
+    // Character limit
+    if (formData.name.length > 30) {
+      setError("Name cannot exceed 30 characters.");
+      return;
     }
 
-    clearForm();
+    let success;
+
+    if (editingStudent) {
+      success = await onUpdateStudent(formData);
+    } else {
+      success = await onAddStudent(formData);
+    }
+
+    // If App.jsx operation was successful
+    if (success) {
+      setIsDirty(false);
+    }
   };
 
-  const clearForm = () => {
+  // Cancel with unsaved warning
+  const handleCancel = () => {
+    if (isDirty) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to cancel?"
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setFormData({
       name: "",
       age: "",
@@ -78,70 +120,141 @@ function StudentForm({
     });
 
     setError("");
+    setIsDirty(false);
 
-    if (editingStudent) {
-      onCancelEdit();
-    }
+    onCancelEdit();
   };
 
+  // Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        handleCancel();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDirty]);
+
   return (
-    <div className="form-card">
-      <h2>{editingStudent ? "Edit Student" : "Add Student"}</h2>
+    <form
+      className="student-form"
+      onSubmit={handleSubmit}
+    >
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>Student Name</label>
+      {/* ERROR MESSAGE */}
 
-          <input
-            type="text"
-            name="name"
-            placeholder="Enter student name"
-            value={formData.name}
-            onChange={handleChange}
-          />
+      {error && (
+        <div className="error-message">
+          ⚠ {error}
         </div>
+      )}
 
-        <div className="form-group">
-          <label>Age</label>
+      {/* STUDENT NAME */}
 
-          <input
-            type="number"
-            name="age"
-            placeholder="Enter age"
-            value={formData.age}
-            onChange={handleChange}
-          />
-        </div>
+      <Input
+        label="Student Name"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        placeholder="Enter student name"
+        maxLength={30}
+      />
 
-        <div className="form-group">
-          <label>Course</label>
+      {/* CHARACTER COUNTER */}
 
-          <input
-            type="text"
-            name="course"
-            placeholder="Enter course"
-            value={formData.course}
-            onChange={handleChange}
-          />
-        </div>
+      <div className="character-counter">
+        {formData.name.length} / 30 characters
+      </div>
 
-        {error && <p className="error">{error}</p>}
+      {/* AGE */}
 
-        <div className="form-buttons">
-          <button type="submit" className="primary-btn">
-            {editingStudent ? "Update Student" : "Add Student"}
-          </button>
+      <Input
+        label="Age"
+        name="age"
+        type="number"
+        value={formData.age}
+        onChange={handleChange}
+        placeholder="Enter age"
+      />
 
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={clearForm}
-          >
-            Clear
-          </button>
-        </div>
-      </form>
-    </div>
+      {/* COURSE */}
+
+      <div className="form-group">
+
+        <label htmlFor="course">
+          Course
+        </label>
+
+        <select
+          id="course"
+          name="course"
+          value={formData.course}
+          onChange={handleChange}
+        >
+          <option value="">
+            Select Course
+          </option>
+
+          <option value="HTML">
+            HTML
+          </option>
+
+          <option value="CSS">
+            CSS
+          </option>
+
+          <option value="JavaScript">
+            JavaScript
+          </option>
+
+          <option value="React">
+            React
+          </option>
+
+          <option value="Node.js">
+            Node.js
+          </option>
+
+          <option value="MongoDB">
+            MongoDB
+          </option>
+        </select>
+
+      </div>
+
+      {/* BUTTONS */}
+
+      <div className="form-actions">
+
+        <Button
+          type="submit"
+          className="primary-button"
+          disabled={loading}
+        >
+          {loading
+            ? "Processing..."
+            : editingStudent
+            ? "Update Student"
+            : "Add Student"}
+        </Button>
+
+        <Button
+          type="button"
+          className="secondary-button"
+          onClick={handleCancel}
+          disabled={loading}
+        >
+          Cancel
+        </Button>
+
+      </div>
+
+    </form>
   );
 }
 
