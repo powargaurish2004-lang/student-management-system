@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 500;
 const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 const jwtSecret = process.env.JWT_SECRET;
 

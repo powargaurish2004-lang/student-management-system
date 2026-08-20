@@ -12,8 +12,8 @@ function StudentCard({
 
       <td>
         <strong>
-          {student.id}
-        </strong>
+    {student.studentId}
+</strong>
       </td>
 
       <td>
