@@ -7,109 +7,58 @@ function StudentCard({
   onDelete,
   onToggleStatus,
 }) {
+  const mongoId = student.id || student._id;
+  const displayId = student.displayId || student.studentId;
+
   return (
     <tr>
+      <td>
+        <strong>{displayId}</strong>
+      </td>
+
+      <td>{student.name}</td>
+
+      <td>{student.age}</td>
 
       <td>
-        <strong>
-          {student.id}
-        </strong>
+        <span className="course-badge">{student.course}</span>
       </td>
 
       <td>
-        {student.name}
-      </td>
-
-      <td>
-        {student.age}
-      </td>
-
-      <td>
-        <span className="course-badge">
-          {student.course}
-        </span>
-      </td>
-
-      <td>
-        <span
-          className={
-            student.status ===
-            "Active"
-              ? "status active"
-              : "status inactive"
-          }
-        >
+        <span className={student.status === "Active" ? "status active" : "status inactive"}>
           {student.status}
         </span>
       </td>
 
-      <td>
-        {student.dateAdded}
-      </td>
+      <td>{student.dateAdded}</td>
 
       <td>
-
         <div className="action-buttons">
-
-          {/* VIEW */}
-
-          <Button
-            className="view-button"
-            onClick={() =>
-              onView(student)
-            }
-          >
+          <Button className="view-button" onClick={() => onView(student)}>
             View
           </Button>
 
-          {/* EDIT */}
-
-          <Button
-            className="edit-button"
-            onClick={() =>
-              onEdit(student)
-            }
-          >
+          <Button className="edit-button" onClick={() => onEdit(student)}>
             Edit
           </Button>
 
-          {/* STATUS */}
-
           <Button
-            className={`status-button ${
-              student.status === "Active"
-                ? "active-btn"
-                : "inactive-btn"
-            }`}
-            onClick={() =>
-              onToggleStatus(
-                student.id
-              )
-            }
+            className={`status-button ${student.status === "Active" ? "active-btn" : "inactive-btn"}`}
+            onClick={() => onToggleStatus(mongoId)}
+            disabled={!mongoId}
           >
-            {student.status ===
-            "Active"
-              ? "🟢 Active"
-              : "🔴 Inactive"}
+            {student.status === "Active" ? "🟢 Active" : "🔴 Inactive"}
           </Button>
-
-          {/* DELETE */}
 
           <Button
             className="delete-button"
-            onClick={() =>
-              onDelete(
-                student.id
-              )
-            }
+            onClick={() => onDelete(mongoId)}
+            disabled={!mongoId}
           >
             Delete
           </Button>
-
         </div>
-
       </td>
-
     </tr>
   );
 }
