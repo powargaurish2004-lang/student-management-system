@@ -25,7 +25,8 @@ function App() {
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [courseFilter, setCourseFilter] = useState("All");
-    const [sortOrder, setSortOrder] = useState("default");
+    const [statusFilter, setStatusFilter] = useState("All");
+    const [sortOrder, setSortOrder] = useState("id-asc");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState({
@@ -87,7 +88,7 @@ function App() {
     // RESET PAGE WHEN FILTER CHANGES
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, courseFilter, sortOrder]);
+    }, [searchTerm, courseFilter, statusFilter, sortOrder]);
 
 
     // FILTER + SORT
@@ -100,8 +101,17 @@ function App() {
             (
                 courseFilter === "All" ||
                 student.course === courseFilter
+            ) && (
+                statusFilter === "All" ||
+                student.status === statusFilter
             )
         );
+
+        if (sortOrder === "id-asc") {
+            result.sort((a, b) =>
+                String(a.studentId || "").localeCompare(String(b.studentId || ""), undefined, { numeric: true })
+            );
+        }
 
         if (sortOrder === "name-asc") {
             result.sort((a, b) =>
@@ -133,6 +143,7 @@ function App() {
         students,
         searchTerm,
         courseFilter,
+        statusFilter,
         sortOrder
     ]);
 
@@ -361,7 +372,8 @@ function App() {
 
         setSearchTerm("");
         setCourseFilter("All");
-        setSortOrder("default");
+        setStatusFilter("All");
+        setSortOrder("id-asc");
 
     };
 
@@ -383,6 +395,9 @@ function App() {
     }
 
     const isAdmin = user.role === "admin";
+    const activeStudents = students.filter((student) => student.status === "Active").length;
+    const inactiveStudents = students.length - activeStudents;
+    const courseCount = new Set(students.map((student) => student.course)).size;
 
 
     // MAIN PAGE
@@ -399,16 +414,22 @@ function App() {
 
             <header className="header">
 
-                <div>
+                <div className="brand-block">
 
-                    <h1>
-                        Student Management System
-                    </h1>
+                    <div className={`brand-mark ${isAdmin ? "admin-mark" : ""}`}>
+                        {isAdmin ? "A" : "S"}
+                    </div>
 
-                    <p>
-                        {user.role === "admin" ? "Admin console for" : "Private workspace for"}{" "}
-                        {user.name}
-                    </p>
+                    <div>
+                        <p className="header-kicker">{isAdmin ? "ADMINISTRATION" : "YOUR WORKSPACE"}</p>
+                        <h1>Student Management System</h1>
+
+                        <p>
+                            {user.role === "admin" ? "Admin console for" : "Private workspace for"}{" "}
+                            {user.name}
+                        </p>
+                        <span className="header-email">{user.email}</span>
+                    </div>
 
                 </div>
 
@@ -423,9 +444,7 @@ function App() {
                             )
                         }
                     >
-                        {darkMode
-                            ? "Light Mode"
-                            : "Dark Mode"}
+                        {darkMode ? "Light Mode" : "Dark Mode"}
                     </Button>
 
 
@@ -449,7 +468,7 @@ function App() {
 
                         }}
                     >
-                        + Add Student
+                        Add Student
                     </Button>
 
                 </div>
@@ -458,6 +477,41 @@ function App() {
 
 
             <main>
+
+                <section className={`dashboard-intro ${isAdmin ? "admin-intro" : ""}`}>
+                    <div>
+                        <span className="section-label">{isAdmin ? "Operations overview" : "Personal overview"}</span>
+                        <h2>{isAdmin ? "Keep every student record moving." : "Stay on top of your students."}</h2>
+                        <p>{isAdmin ? "Review activity, manage status, and maintain the student directory from one place." : "Add, edit, and review your student records in one focused workspace."}</p>
+                    </div>
+                    <div className="intro-meta">
+                        <span className="role-pill">{isAdmin ? "Administrator" : "User account"}</span>
+                        <small>Signed in as {user.email}</small>
+                    </div>
+                </section>
+
+                <section className="metric-grid" aria-label="Student summary">
+                    <div className="metric-card metric-primary">
+                        <span className="metric-label">Total students</span>
+                        <strong>{students.length}</strong>
+                        <small>{isAdmin ? "Across all workspaces" : "In your workspace"}</small>
+                    </div>
+                    <div className="metric-card">
+                        <span className="metric-label">Active</span>
+                        <strong>{activeStudents}</strong>
+                        <small><span className="metric-dot active-dot" /> Currently active</small>
+                    </div>
+                    <div className="metric-card">
+                        <span className="metric-label">Inactive</span>
+                        <strong>{inactiveStudents}</strong>
+                        <small><span className="metric-dot inactive-dot" /> Needs attention</small>
+                    </div>
+                    <div className="metric-card">
+                        <span className="metric-label">Courses covered</span>
+                        <strong>{courseCount}</strong>
+                        <small>Of {courses.length} available courses</small>
+                    </div>
+                </section>
 
                 {/* RECENTLY ADDED */}
 
@@ -486,6 +540,8 @@ function App() {
                                         <span>
                                             {student.course}
                                         </span>
+
+                                        {isAdmin && <small className="recent-email">{student.email || "Email unavailable"}</small>}
 
                                         <small>
                                             {student.dateAdded}
@@ -546,6 +602,18 @@ function App() {
 
                     </select>
 
+                    <select
+                        value={statusFilter}
+                        onChange={(event) =>
+                            setStatusFilter(event.target.value)
+                        }
+                        aria-label="Filter by status"
+                    >
+                        <option value="All">All statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+
 
                     <select
                         value={sortOrder}
@@ -556,8 +624,8 @@ function App() {
                         }
                     >
 
-                        <option value="default">
-                            Default Order
+                        <option value="id-asc">
+                            Student ID 0001 first
                         </option>
 
                         <option value="name-asc">
@@ -725,6 +793,10 @@ function App() {
                                 "Name",
                                 viewingStudent.name
                             ],
+                            [[
+                                "Email",
+                                viewingStudent.email || user.email || "Not available"
+                            ]],
                             [
                                 "Age",
                                 viewingStudent.age

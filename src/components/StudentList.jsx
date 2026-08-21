@@ -42,6 +42,7 @@ function StudentList({
             <tr>
               <th>ID</th>
               <th>Name</th>
+              <th>Email</th>
               <th>Age</th>
               <th>Course</th>
               <th>Status</th>

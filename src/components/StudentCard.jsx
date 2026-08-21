@@ -22,6 +22,8 @@ function StudentCard({
         {student.name}
       </td>
 
+      <td>{student.email || "Not available"}</td>
+
       <td>
         {student.age}
       </td>

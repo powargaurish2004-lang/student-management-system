@@ -1,10 +1,14 @@
 /* global process */
-import "dotenv/config";
+import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), ".env") });
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -31,6 +35,7 @@ const userSchema = new mongoose.Schema({
 
 const studentSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  studentId: { type: String, unique: true, sparse: true },
   name: { type: String, required: true, trim: true, maxlength: 30 },
   age: { type: Number, required: true, min: 1, max: 120 },
   course: { type: String, required: true, enum: ["HTML", "CSS", "JavaScript", "React", "Node.js", "MongoDB"] },
@@ -41,9 +46,29 @@ studentSchema.index({ userId: 1, name: 1, age: 1 }, { unique: true });
 const User = mongoose.model("User", userSchema);
 const Student = mongoose.model("Student", studentSchema);
 
+const formatStudentId = (value) => String(value).padStart(4, "0");
+
+const ensureStudentIds = async () => {
+  const students = await Student.find({}).sort({ createdAt: 1, _id: 1 });
+  const usedIds = new Set(students.map((student) => Number(student.studentId)).filter(Number.isFinite));
+  let nextId = 1;
+
+  for (const student of students) {
+    if (!student.studentId) {
+      while (usedIds.has(nextId)) nextId += 1;
+      student.studentId = formatStudentId(nextId);
+      usedIds.add(nextId);
+      nextId += 1;
+      await student.save();
+    }
+  }
+
+  return students;
+};
+
 const formatStudent = (student) => ({
-  id: student._id.toString(), name: student.name, age: student.age, course: student.course,
-  status: student.status, dateAdded: student.createdAt.toLocaleDateString(), createdAt: student.createdAt.getTime(),
+  id: student._id.toString(), studentId: student.studentId, name: student.name, age: student.age, course: student.course,
+  email: student.userId?.email, status: student.status, dateAdded: student.createdAt.toLocaleDateString(), createdAt: student.createdAt.getTime(),
 });
 
 const auth = (req, res, next) => {
@@ -74,7 +99,7 @@ app.post("/api/auth/register", async (req, res) => {
       if (!adminSignupCode || !adminUsername || !adminEmail || !adminPassword) return res.status(503).json({ message: "Admin account setup is incomplete." });
       if (adminCode !== adminSignupCode || name !== adminUsername || email?.toLowerCase() !== adminEmail || password !== adminPassword) return res.status(403).json({ message: "Use the configured admin username, email, password, and signup code." });
     }
-    if (!name?.trim() || !/^\\S+@\\S+\\.\\S+$/.test(email || "") || !password || password.length < 8) return res.status(400).json({ message: "Use a name, valid email, and password with at least 8 characters." });
+    if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || "") || !password || password.length < 8) return res.status(400).json({ message: "Use a name, valid email, and password with at least 8 characters." });
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) return res.status(409).json({ message: "An account with that email already exists." });
     const user = await User.create({ name, email, role, passwordHash: await bcrypt.hash(password, 12) });
@@ -94,13 +119,22 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 app.get("/api/students", auth, async (req, res) => {
+  await ensureStudentIds();
   const query = req.role === "admin" ? {} : { userId: req.userId };
-  res.json((await Student.find(query).sort({ createdAt: -1 })).map(formatStudent));
+  const students = Student.find(query).sort({ studentId: 1 });
+  students.populate("userId", "email");
+  res.json((await students).map(formatStudent));
 });
 app.post("/api/students", auth, async (req, res) => {
   if (req.role !== "admin") return res.status(403).json({ message: "Only admins can add students." });
   const message = validateStudent(req.body); if (message) return res.status(400).json({ message });
-  try { res.status(201).json(formatStudent(await Student.create({ ...req.body, age: Number(req.body.age), userId: req.userId }))); }
+  try {
+    const students = await ensureStudentIds();
+    const nextId = students.reduce((highest, student) => Math.max(highest, Number(student.studentId) || 0), 0) + 1;
+    const student = await Student.create({ ...req.body, studentId: formatStudentId(nextId), age: Number(req.body.age), userId: req.userId });
+    await student.populate("userId", "email");
+    res.status(201).json(formatStudent(student));
+  }
   catch (error) { res.status(error.code === 11000 ? 409 : 500).json({ message: error.code === 11000 ? "A student with the same name and age already exists." : "Unable to add student." }); }
 });
 app.put("/api/students/:id", auth, async (req, res) => {
@@ -108,13 +142,17 @@ app.put("/api/students/:id", auth, async (req, res) => {
   const message = validateStudent(req.body); if (message) return res.status(400).json({ message });
   const query = req.role === "admin" ? { _id: req.params.id } : { _id: req.params.id, userId: req.userId };
   const student = await Student.findOneAndUpdate(query, { ...req.body, age: Number(req.body.age) }, { new: true, runValidators: true });
-  if (!student) return res.status(404).json({ message: "Student not found." }); res.json(formatStudent(student));
+  if (!student) return res.status(404).json({ message: "Student not found." });
+  if (req.role === "admin") await student.populate("userId", "email");
+  res.json(formatStudent(student));
 });
 app.patch("/api/students/:id/status", auth, async (req, res) => {
   if (req.role !== "admin") return res.status(403).json({ message: "Only admins can change student status." });
   const query = req.role === "admin" ? { _id: req.params.id } : { _id: req.params.id, userId: req.userId };
   const student = await Student.findOne(query); if (!student) return res.status(404).json({ message: "Student not found." });
-  student.status = student.status === "Active" ? "Inactive" : "Active"; await student.save(); res.json(formatStudent(student));
+  student.status = student.status === "Active" ? "Inactive" : "Active"; await student.save();
+  await student.populate("userId", "email");
+  res.json(formatStudent(student));
 });
 app.delete("/api/students/:id", auth, async (req, res) => {
   if (req.role !== "admin") return res.status(403).json({ message: "Only admins can delete students." });
