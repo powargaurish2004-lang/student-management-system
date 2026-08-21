@@ -382,6 +382,8 @@ function App() {
         );
     }
 
+    const isAdmin = user.role === "admin";
+
 
     // MAIN PAGE
     return (
@@ -404,7 +406,7 @@ function App() {
                     </h1>
 
                     <p>
-                        Private workspace for{" "}
+                        {user.role === "admin" ? "Admin console for" : "Private workspace for"}{" "}
                         {user.name}
                     </p>
 
@@ -621,6 +623,8 @@ function App() {
                     }}
                     onDelete={deleteStudent}
                     onToggleStatus={toggleStatus}
+                    canEdit={true}
+                    canManage={isAdmin}
                 />
 
 

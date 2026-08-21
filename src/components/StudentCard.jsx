@@ -6,6 +6,8 @@ function StudentCard({
   onEdit,
   onDelete,
   onToggleStatus,
+  canEdit,
+  canManage,
 }) {
   return (
     <tr>
@@ -62,49 +64,30 @@ function StudentCard({
             View
           </Button>
 
-          {/* EDIT */}
+          {canEdit && <>
+            <Button
+              className="edit-button"
+              onClick={() => onEdit(student)}
+            >
+              Edit
+            </Button>
+          </>}
 
-          <Button
-            className="edit-button"
-            onClick={() =>
-              onEdit(student)
-            }
-          >
-            Edit
-          </Button>
+          {canManage && <>
+            <Button
+              className={`status-button ${student.status === "Active" ? "active-btn" : "inactive-btn"}`}
+              onClick={() => onToggleStatus(student.id)}
+            >
+              {student.status === "Active" ? "🟢 Active" : "🔴 Inactive"}
+            </Button>
 
-          {/* STATUS */}
-
-          <Button
-            className={`status-button ${
-              student.status === "Active"
-                ? "active-btn"
-                : "inactive-btn"
-            }`}
-            onClick={() =>
-              onToggleStatus(
-                student.id
-              )
-            }
-          >
-            {student.status ===
-            "Active"
-              ? "🟢 Active"
-              : "🔴 Inactive"}
-          </Button>
-
-          {/* DELETE */}
-
-          <Button
-            className="delete-button"
-            onClick={() =>
-              onDelete(
-                student.id
-              )
-            }
-          >
-            Delete
-          </Button>
+            <Button
+              className="delete-button"
+              onClick={() => onDelete(student.id)}
+            >
+              Delete
+            </Button>
+          </>}
 
         </div>
 

@@ -6,6 +6,8 @@ function StudentList({
   onEdit,
   onDelete,
   onToggleStatus,
+  canEdit,
+  canManage,
 }) {
   if (students.length === 0) {
     return (
@@ -61,6 +63,8 @@ function StudentList({
                   onToggleStatus={
                     onToggleStatus
                   }
+                  canEdit={canEdit}
+                  canManage={canManage}
                 />
               )
             )}

@@ -1,4 +1,14 @@
-# React + Vite
+# Student Management System
+
+## Run locally
+
+1. Start the API from `student-management-backend` with `npm run dev`.
+2. Start this frontend with `npm run dev`.
+3. Open the Vite URL shown in the terminal, normally `http://localhost:5174`.
+
+The frontend uses `VITE_API_URL` from `.env`. Database, JWT, and admin credentials belong only in the backend `.env`; never put them in a `VITE_*` variable.
+
+Admin registration requires the configured backend admin name, email, password, and `ADMIN_SIGNUP_CODE`. Users can register normally. Users can add and edit only their own students; admins can manage all students.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

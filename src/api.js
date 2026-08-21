@@ -1,5 +1,11 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+const normalizeStudent = (student) => ({
+    ...student,
+    id: student.id || student._id,
+    displayId: student.displayId || student.studentId
+});
+
 export const getToken = () => sessionStorage.getItem("sms_token");
 
 export const saveSession = ({ token, user }) => {
@@ -63,11 +69,12 @@ export const authApi = {
 export const studentsApi = {
     list: async () => {
     const response = await api("/students");
+    const students = Array.isArray(response)
+        ? response
+        : response.students || [];
 
-    return (response.students || []).map(student => ({
-        ...student,
-        id: student._id,
-        displayId: student.studentId
+    return students.map(student => ({
+        ...normalizeStudent(student)
     }));
 },
 
@@ -77,10 +84,7 @@ export const studentsApi = {
             body: JSON.stringify(data)
         });
 
-        return {
-            ...response.student,
-            id: response.student._id
-        };
+        return normalizeStudent(response.student || response);
     },
 
     update: async (id, data) => {
@@ -89,10 +93,7 @@ export const studentsApi = {
             body: JSON.stringify(data)
         });
 
-        return {
-            ...response.student,
-            id: response.student._id
-        };
+        return normalizeStudent(response.student || response);
     },
 
     toggle: async (id) => {
@@ -100,10 +101,7 @@ export const studentsApi = {
             method: "PATCH"
         });
 
-        return {
-            ...response.student,
-            id: response.student._id
-        };
+        return normalizeStudent(response.student || response);
     },
 
     remove: (id) =>
